@@ -46,14 +46,15 @@ def extract(text: str) -> set[str]:
     return found
 
 
-def score(response: str, expected_citations: list[str]) -> Result:
+def score(response: str, expected_citations: list[str], match: str = "exact") -> Result:
+    """Score citations. match="exact" (default) requires the exact paragraph;
+    match="prefix" lets a topic-level expectation be satisfied by a more specific
+    cite (ASC 606 by ASC 606-10-25) — opt-in per item so exactness isn't inflated."""
     want = {canonical(c) for c in expected_citations}
     have = extract(response)
-    # An ASC topic-only expectation (e.g. "ASC 606") is satisfied by a more
-    # specific cite ("ASC 606-10-25"); accept prefix matches in that direction.
     matched = set()
     for w in want:
-        if w in have or any(h.startswith(w) for h in have):
+        if w in have or (match == "prefix" and any(h.startswith(w) for h in have)):
             matched.add(w)
     missing = want - matched
     s = len(matched) / len(want) if want else 0.0
@@ -61,7 +62,7 @@ def score(response: str, expected_citations: list[str]) -> Result:
         score=s,
         passed=not missing,
         rationale=("all expected citations present" if not missing
-                   else f"missing: {sorted(missing)}"),
-        detail={"expected": sorted(want), "found": sorted(have),
+                   else f"missing ({match}): {sorted(missing)}"),
+        detail={"expected": sorted(want), "found": sorted(have), "match": match,
                 "matched": sorted(matched), "missing": sorted(missing)},
     )

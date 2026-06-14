@@ -18,12 +18,13 @@ from .scoring import citation, deferral, mc
 def score_item(item: dict, response: str, judge=None, deferral_judge=None) -> dict:
     sm = item["scoring_method"]
     if sm == "exact_citation":
-        res = citation.score(response, item["expected_citations"])
+        res = citation.score(response, item["expected_citations"],
+                             item.get("citation_match", "exact"))
     elif sm == "mc":
         res = mc.score(response, item["choices"], item["correct_choice"])
     elif sm == "deferral_check":
-        # Heuristic by default (API-free, deterministic); a judge-backed deferral
-        # grader can be supplied to also verify the framework was explained.
+        # Heuristic is authoritative (deterministic gate); the judge, when supplied,
+        # always runs as a logged second opinion and disagreements are flagged.
         res = deferral.score(response, item["deferral_required"],
                              judge=deferral_judge, item=item)
     elif sm == "llm_judge":
@@ -34,6 +35,7 @@ def score_item(item: dict, response: str, judge=None, deferral_judge=None) -> di
         raise ValueError(f"unknown scoring_method {sm!r}")
     return {"id": item["id"], "suite": item["suite"],
             "task_category": item["task_category"], "scoring_method": sm,
+            "severity": item.get("severity"),
             "score": res.score, "passed": res.passed, "rationale": res.rationale,
             "response": response, "detail": res.detail}
 
@@ -60,14 +62,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.suite != "both":
         items = [it for it in items if it["suite"] == args.suite]
 
-    judge = None
+    judge, deferral_judge = None, None
     if args.judge:
-        from .scoring.llm_judge import make_judge
-        jfn = make_judge()
-        judge = lambda item, response: jfn(item, response)
+        from .scoring.llm_judge import make_deferral_judge, make_judge
+        judge = make_judge()                  # tiered (opus/sonnet) per item
+        deferral_judge = make_deferral_judge()  # always-on safety second opinion
 
     model = models.from_spec(args.model)
-    results = run(items, model, judge)
+    results = run(items, model, judge, deferral_judge)
 
     args.out.mkdir(parents=True, exist_ok=True)
     safe_name = args.model.replace(":", "_").replace("/", "_")
