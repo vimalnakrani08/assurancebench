@@ -1,0 +1,24 @@
+# Planning docs (private — local only)
+CLAUDE.md
+phase2_spec.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Environment / secrets (API keys live here)
+.env
+*.key
+
+# Model run outputs / caches (regenerable)
+runs/
+data/cache/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
