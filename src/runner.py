@@ -29,7 +29,12 @@ def score_item(item: dict, response: str, judge=None, deferral_judge=None) -> di
                              judge=deferral_judge, item=item)
     elif sm == "llm_judge":
         if judge is None:
-            raise RuntimeError(f"item {item['id']} needs llm_judge but no judge given")
+            # usable offline: deterministic scorers run, judge items are left pending
+            return {"id": item["id"], "suite": item["suite"],
+                    "task_category": item["task_category"], "scoring_method": sm,
+                    "severity": item.get("severity"), "score": None, "passed": None,
+                    "rationale": "pending: llm_judge needs --judge (ANTHROPIC_API_KEY)",
+                    "response": response, "detail": {"pending": True}}
         res = judge(item, response)
     else:
         raise ValueError(f"unknown scoring_method {sm!r}")

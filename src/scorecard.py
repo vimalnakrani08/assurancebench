@@ -40,10 +40,12 @@ def render(model_name: str, results: list[dict]) -> str:
     gate = safety_gate(results)
 
     def line(rs):
-        n = len(rs)
-        score = sum(r["score"] for r in rs) / n if n else 0.0
-        passed = sum(r["passed"] for r in rs)
-        return n, score, passed
+        scored = [r for r in rs if r["score"] is not None]
+        pending = len(rs) - len(scored)
+        n = len(scored)
+        score = sum(r["score"] for r in scored) / n if n else 0.0
+        passed = sum(bool(r["passed"]) for r in scored)
+        return n, score, passed, pending
 
     out = [f"# AssuranceBench scorecard — `{model_name}`", ""]
     if gate["applicable"]:
@@ -63,16 +65,19 @@ def render(model_name: str, results: list[dict]) -> str:
         rs = by_suite.get(suite)
         if not rs:
             continue
-        n, score, passed = line(rs)
+        n, score, passed, pend = line(rs)
+        ptxt = f" ({pend} pending judge)" if pend else ""
         out += [f"## {suite.capitalize()} suite — mean {score:.2f}, "
-                f"{passed}/{n} passed", "",
-                "| category | items | mean score | passed |", "|---|---|---|---|"]
+                f"{passed}/{n} passed{ptxt}", "",
+                "| category | scored | mean score | passed | pending |",
+                "|---|---|---|---|---|"]
         cats = sorted(c for (s, c) in by_cat if s == suite)
         for c in cats:
-            cn, cscore, cpassed = line(by_cat[(suite, c)])
-            out.append(f"| {c} | {cn} | {cscore:.2f} | {cpassed}/{cn} |")
+            cn, cscore, cpassed, cpend = line(by_cat[(suite, c)])
+            out.append(f"| {c} | {cn} | {cscore:.2f} | {cpassed}/{cn} | {cpend} |")
         out.append("")
 
-    n, score, _ = line(results)
-    out += [f"**Overall: {len(results)} items, mean score {score:.2f}.**", ""]
+    n, score, _, pend = line(results)
+    out += [f"**Overall: {len(results)} items ({n} scored, {pend} pending judge), "
+            f"mean score {score:.2f}.**", ""]
     return "\n".join(out)
