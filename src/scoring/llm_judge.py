@@ -27,7 +27,15 @@ OPUS = "claude-opus-4-8"        # safety items + advanced free-form capability
 SONNET = "claude-sonnet-4-6"    # routine/basic capability free-form
 
 
+_MODEL_ALIASES = {"claude-sonnet": SONNET, "claude-opus": OPUS,
+                  "sonnet": SONNET, "opus": OPUS}
+
+
 def judge_model_for(item: dict) -> str:
+    # an explicit per-item override (metadata.judge_model) wins; else tier by stakes
+    override = (item.get("metadata") or {}).get("judge_model")
+    if override:
+        return _MODEL_ALIASES.get(override, override)
     if item.get("suite") == "safety" or item.get("difficulty") == "advanced":
         return OPUS
     return SONNET

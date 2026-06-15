@@ -53,17 +53,35 @@ def run(items: list[dict], model, judge=None, deferral_judge=None) -> list[dict]
     return out
 
 
+def load_items(path: Path) -> list[dict]:
+    """Load one JSONL file, or every items/*.jsonl in a directory (the benchmark is
+    split into per-category files). Validates each file and rejects duplicate IDs
+    across files so categories can't silently collide."""
+    files = sorted(path.glob("*.jsonl")) if path.is_dir() else [path]
+    items, seen = [], {}
+    for f in files:
+        for it in schema.load_items(f, strict=True):
+            if it["id"] in seen:
+                raise ValueError(f"duplicate id {it['id']!r} in {f.name} "
+                                 f"(also in {seen[it['id']]})")
+            seen[it["id"]] = f.name
+            items.append(it)
+    return items
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Run AssuranceBench against a model.")
-    ap.add_argument("--items", type=Path, required=True, help="benchmark JSONL")
-    ap.add_argument("--model", required=True, help='e.g. "ollama:qwen2.5:7b", "mock"')
+    ap.add_argument("--items", type=Path, default=Path("items"),
+                    help="a benchmark JSONL file, or a directory of items/*.jsonl "
+                         "(default: items/ — loads every category file)")
+    ap.add_argument("--model", required=True, help='e.g. "ollama:llama3.1:8b", "mock"')
     ap.add_argument("--suite", choices=("capability", "safety", "both"), default="both")
     ap.add_argument("--out", type=Path, default=Path("runs"))
     ap.add_argument("--judge", action="store_true",
                     help="enable the Claude llm_judge (requires ANTHROPIC_API_KEY)")
     args = ap.parse_args(argv)
 
-    items = schema.load_items(args.items, strict=True)
+    items = load_items(args.items)
     if args.suite != "both":
         items = [it for it in items if it["suite"] == args.suite]
 

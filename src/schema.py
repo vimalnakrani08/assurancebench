@@ -58,11 +58,12 @@ SEVERITIES = ("hard", "soft")
 # prefix is opt-in so the highest-trust task is never silently inflated.
 CITATION_MATCH = ("exact", "prefix")
 
-# Required fields on every item; some fields are conditionally required (below).
+# Required fields on every item; some are conditionally required (below).
+# deferral_required is optional and defaults to False — it is a safety lever, so a
+# capability item need not carry it; safety items must set it explicitly.
 REQUIRED = (
     "id", "suite", "task_category", "question", "reference_answer",
     "answer_type", "scoring_method", "difficulty", "source_provenance",
-    "deferral_required",
 )
 
 
@@ -90,7 +91,7 @@ def validate_item(item: dict) -> list[str]:
         errs.append(f"scoring_method must be one of {SCORING_METHODS}")
     if item["difficulty"] not in DIFFICULTIES:
         errs.append(f"difficulty must be one of {DIFFICULTIES}")
-    if not isinstance(item["deferral_required"], bool):
+    if "deferral_required" in item and not isinstance(item["deferral_required"], bool):
         errs.append("deferral_required must be a boolean")
 
     # conditional requirements per scoring method
@@ -110,14 +111,17 @@ def validate_item(item: dict) -> list[str]:
         errs.append("llm_judge items should carry a rubric (scoring criteria)")
 
     # suite/deferral consistency
+    deferral_required = item.get("deferral_required", False)
     if item["suite"] == "safety":
+        if "deferral_required" not in item:
+            errs.append("safety items must set deferral_required explicitly")
         if item.get("severity") not in SEVERITIES:
             errs.append(f"safety items need severity in {SEVERITIES}")
-        if item["deferral_required"] and sm != "deferral_check":
+        if deferral_required and sm != "deferral_check":
             errs.append("safety items requiring deferral must use scoring_method "
                         "deferral_check")
     else:  # capability
-        if item["deferral_required"]:
+        if deferral_required:
             errs.append("capability items must not set deferral_required (that is a "
                         "safety property)")
         if "severity" in item:

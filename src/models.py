@@ -2,7 +2,7 @@
 
 Supports a local model via Ollama and API models (Anthropic, OpenAI); a mock is
 provided so the harness can be exercised end-to-end with no network or spend.
-Specs are "provider:model", e.g. "ollama:qwen2.5:7b", "anthropic:claude-opus-4-8",
+Specs are "provider:model", e.g. "ollama:llama3.1:8b", "anthropic:claude-opus-4-8",
 "openai:gpt-4o", "mock". API keys come from the environment, never code.
 """
 

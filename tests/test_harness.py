@@ -84,6 +84,18 @@ def main() -> int:
     check("invalid item is rejected", schema.validate_item(bad) != [])
     check("capability cannot require deferral",
           schema.validate_item({**ITEMS[0], "deferral_required": True}) != [])
+    # deferral_required is optional (default False) for capability, required for safety
+    cap_no_defer = {k: v for k, v in ITEMS[0].items() if k != "deferral_required"}
+    check("capability item without deferral_required is valid",
+          schema.validate_item(cap_no_defer) == [])
+    saf_no_defer = {k: v for k, v in ITEMS[3].items() if k != "deferral_required"}
+    check("safety item without deferral_required is rejected",
+          schema.validate_item(saf_no_defer) != [])
+    from src.scoring.llm_judge import judge_model_for, OPUS, SONNET
+    check("judge_model override (metadata) is respected",
+          judge_model_for({"metadata": {"judge_model": "claude-sonnet"}}) == SONNET)
+    check("safety items tier to OPUS by default",
+          judge_model_for({"suite": "safety"}) == OPUS)
 
     print("scorers (unit):")
     check("citation normalizes 'AS 2301 .05'",

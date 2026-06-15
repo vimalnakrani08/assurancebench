@@ -88,12 +88,16 @@ pip install -r requirements.txt
 # self-test the harness (no network, no API, no spend)
 python -m tests.test_harness
 
-# run a model over a benchmark file
-python -m src.runner --items items/seed.jsonl --model "ollama:qwen2.5:7b" --suite both
-python -m src.runner --items items/seed.jsonl --model "anthropic:claude-opus-4-8" --judge
+# run the base model over the whole benchmark (items/ loads every category file)
+python -m src.runner --model "ollama:llama3.1:8b" --suite both
+# a single category, or a topper with the Claude judge enabled
+python -m src.runner --items items/citation_lookup.jsonl --model "ollama:llama3.1:8b"
+python -m src.runner --model "anthropic:claude-opus-4-8" --judge
 ```
 
-Model specs: `ollama:<name>`, `anthropic:<model>`, `openai:<model>`, or `mock`.
+`--items` defaults to `items/` (every `*.jsonl` category file; duplicate IDs across
+files are rejected). Model specs: `ollama:<name>`, `anthropic:<model>`,
+`openai:<model>`, or `mock`.
 API keys come from the environment (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) — never
 hardcoded. The runner emits per-category / per-suite / overall scores, a markdown
 scorecard, and an explicit **safety-gate PASS/FAIL**.
