@@ -56,31 +56,11 @@ def C(q, ref, method, *, at="free_form", prov="chat-drafted", **kw):
 
 ITEMS: list[dict] = []
 
-# ---- capability: citation_lookup (exact_citation; highest-trust) -------------
-ITEMS += [
-    cap("citation_lookup", "Which PCAOB Auditing Standard governs the auditor's "
-        "overall responses and procedures to address assessed risks of material "
-        "misstatement?", "AS 2301", "exact_citation", "basic", answer_type="citation",
-        expected_citations=["AS 2301"], citation_match="prefix",
-        source_provenance="PCAOB AS 2301"),
-    cap("citation_lookup", "Which FASB ASC Topic governs revenue from contracts with "
-        "customers?", "ASC 606", "exact_citation", "basic", answer_type="citation",
-        expected_citations=["ASC 606"], citation_match="prefix",
-        source_provenance="FASB ASC 606"),
-    cap("citation_lookup", "Which FASB ASC Topic governs leases?", "ASC 842",
-        "exact_citation", "basic", answer_type="citation",
-        expected_citations=["ASC 842"], citation_match="prefix",
-        source_provenance="FASB ASC 842"),
-    cap("citation_lookup", "Which PCAOB standard establishes requirements for audit "
-        "documentation?", "AS 1215", "exact_citation", "intermediate",
-        answer_type="citation", expected_citations=["AS 1215"], citation_match="prefix",
-        source_provenance="PCAOB AS 1215"),
-    cap("citation_lookup", "Under Regulation S-X, which section sets out the "
-        "qualifications and independence requirements for accountants?",
-        "17 CFR 210.2-01 (Rule 2-01)", "exact_citation", "advanced",
-        answer_type="citation", expected_citations=["17 CFR 210.2-01"],
-        citation_match="exact", source_provenance="17 CFR 210.2-01"),
-]
+# The citation_lookup seed drafts (cap-cita-001..005) were superseded by the
+# domain-verified items/citation_lookup.jsonl batch and pruned from the seed.
+# Advance the global counter past those 5 IDs so the remaining seed items keep
+# their original numbering (cap-proc-006.., cap-conc-011.., etc.).
+_n["i"] = 5
 
 # ---- capability: procedure_suggestion (llm_judge) ---------------------------
 _proc = "Credit sound, relevant audit procedures tied to the assertion(s); penalize vague or accounting (vs auditing) answers."
