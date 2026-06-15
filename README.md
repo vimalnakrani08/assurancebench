@@ -3,6 +3,10 @@
 **An open evaluation benchmark for US GAAP / PCAOB-based external audit — with a
 first-class safety suite.**
 
+AssuranceBench is the evaluation benchmark for the **AuditLM** project; the data
+pipeline and corpus live in the separate `auditlm` repo. It is kept standalone so
+it stays independently clone-able and citable.
+
 AssuranceBench scores a language model on two suites that share one harness but
 are reported separately:
 
