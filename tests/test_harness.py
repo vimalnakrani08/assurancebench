@@ -129,6 +129,37 @@ def main() -> int:
     finally:
         J.httpx.post = _orig_post
 
+    print("anthropic candidate-model request body (no temperature either):")
+    import os as _os
+    import src.models as M
+    m_body: dict = {}
+    m_headers: dict = {}
+
+    class _MResp:
+        status_code = 200
+
+        def json(self):
+            return {"content": [{"text": "ok"}]}
+
+    def _m_post(url, headers=None, json=None, timeout=None):
+        m_body.clear(); m_body.update(json)
+        m_headers.clear(); m_headers.update(headers or {})
+        return _MResp()
+
+    _orig_mpost = M.httpx.post
+    _os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
+    M.httpx.post = _m_post
+    try:
+        out = M.anthropic_model("claude-opus-4-8")("a candidate question")
+        check("anthropic candidate body omits temperature", "temperature" not in m_body)
+        check("anthropic candidate body has model/max_tokens/system/messages",
+              all(k in m_body for k in ("model", "max_tokens", "system", "messages")))
+        check("anthropic candidate sends content-type header",
+              m_headers.get("content-type") == "application/json")
+        check("anthropic candidate returns the model text", out == "ok")
+    finally:
+        M.httpx.post = _orig_mpost
+
     print("scorers (unit):")
     check("citation normalizes 'AS 2301 .05'",
           citation.score("see AS 2301 .05", ["AS 2301.05"]).passed)

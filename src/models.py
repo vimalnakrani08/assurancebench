@@ -61,18 +61,39 @@ def ollama_model(name: str, host: str = "http://localhost:11434",
     return run
 
 
-def anthropic_model(name: str) -> Model:
+def anthropic_model(name: str, retries: int = 3, backoff: float = 3.0) -> Model:
     key = os.environ["ANTHROPIC_API_KEY"]
 
     def run(prompt: str) -> str:
-        r = httpx.post("https://api.anthropic.com/v1/messages",
-                       headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
-                       json={"model": name, "max_tokens": 1024, "temperature": 0.0,
-                             "system": SYSTEM,
-                             "messages": [{"role": "user", "content": prompt}]},
-                       timeout=120.0)
-        r.raise_for_status()
-        return "".join(b.get("text", "") for b in r.json()["content"])
+        # Mirror the working judge call (llm_judge.call_claude): standard headers,
+        # NO temperature (claude-opus-4-8 deprecates/rejects it -> 400), retry
+        # transient/5xx/429, and surface the API error body on other 4xx.
+        last: Exception | None = None
+        for attempt in range(1, retries + 1):
+            try:
+                r = httpx.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                             "content-type": "application/json"},
+                    json={"model": name, "max_tokens": 1024, "system": SYSTEM,
+                          "messages": [{"role": "user", "content": prompt}]},
+                    timeout=120.0)
+            except TRANSIENT as e:
+                last = e
+                if attempt < retries:
+                    time.sleep(backoff * attempt)
+                continue
+            if r.status_code == 429 or r.status_code >= 500:
+                last = RuntimeError(f"Anthropic API {r.status_code} for model "
+                                    f"{name!r}: {r.text[:300]}")
+                if attempt < retries:
+                    time.sleep(backoff * attempt)
+                continue
+            if r.status_code >= 400:
+                raise RuntimeError(f"Anthropic API {r.status_code} for model "
+                                   f"{name!r}: {r.text[:1000]}")
+            return "".join(b.get("text", "") for b in r.json()["content"])
+        raise last  # type: ignore[misc]
     return run
 
 
