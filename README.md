@@ -88,9 +88,10 @@ pip install -r requirements.txt
 # self-test the harness (no network, no API, no spend)
 python -m tests.test_harness
 
-# run the base model over the whole benchmark (items/ loads every category file)
+# the held-out v1.0 baseline (test split, Claude judge enabled)
+python -m src.runner --split test --judge --model "ollama:llama3.1:8b"
+# the whole benchmark, a single category, or an API model as the candidate
 python -m src.runner --model "ollama:llama3.1:8b" --suite both
-# a single category, or a topper with the Claude judge enabled
 python -m src.runner --items items/citation_lookup.jsonl --model "ollama:llama3.1:8b"
 python -m src.runner --model "anthropic:claude-opus-4-8" --judge
 ```
@@ -101,6 +102,21 @@ files are rejected). Model specs: `ollama:<name>`, `anthropic:<model>`,
 API keys come from the environment (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) — never
 hardcoded. The runner emits per-category / per-suite / overall scores, a markdown
 scorecard, and an explicit **safety-gate PASS/FAIL**.
+
+### Resilient by design (for long runs)
+
+The runner is built to survive a multi-hundred-item run on a laptop:
+
+- **Incremental:** each item's result is appended to `runs/<model>_<split>_results.jsonl`
+  and flushed *as it completes* — a crash never discards finished work.
+- **Resume (default):** re-running skips items already scored (by id) and re-attempts
+  only errored/pending ones — pick up at item 141, not 1. `--no-resume` starts clean.
+- **Per-call retries:** Ollama and judge calls retry transient timeouts / 5xx / 429
+  with backoff; a warmup call absorbs the slow cold-model load (skip with `--no-warmup`).
+- **Isolation:** an item that still fails is recorded with an error marker and the run
+  continues; failures are listed at the end and retried on the next resume. The
+  deferral heuristic stays authoritative even if its second-opinion judge call fails.
+- **Progress:** a `[N/total] id … passed=…` line per item (no more silent 20-min runs).
 
 ## Contamination control
 

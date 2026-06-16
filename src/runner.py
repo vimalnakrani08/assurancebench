@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from . import models, scorecard, schema
 from .scoring import citation, deferral, mc
+
+WARMUP_PROMPT = "Reply with the single word: ready."
 
 
 def score_item(item: dict, response: str, judge=None, deferral_judge=None) -> dict:
@@ -53,6 +56,35 @@ def run(items: list[dict], model, judge=None, deferral_judge=None) -> list[dict]
     return out
 
 
+def error_result(item: dict, exc: Exception) -> dict:
+    """A result marker for an item that failed after retries — recorded so the run
+    continues and the failure is visible/resumable, never fatal."""
+    return {"id": item["id"], "suite": item["suite"],
+            "task_category": item["task_category"],
+            "scoring_method": item["scoring_method"], "severity": item.get("severity"),
+            "score": None, "passed": None,
+            "rationale": f"ERROR: {type(exc).__name__}: {exc}",
+            "response": None, "detail": {"error": f"{type(exc).__name__}: {exc}"}}
+
+
+def read_results_log(path: Path) -> dict[str, dict]:
+    """Parse an append-only results log into {id: latest_result}. Tolerates a torn
+    final line (a crash mid-write) so resume never chokes on partial output."""
+    by_id: dict[str, dict] = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if "id" in r:
+                by_id[r["id"]] = r
+    return by_id
+
+
 def load_items(path: Path) -> list[dict]:
     """Load one JSONL file, or every items/*.jsonl in a directory (the benchmark is
     split into per-category files). Validates each file and rejects duplicate IDs
@@ -82,6 +114,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, default=Path("runs"))
     ap.add_argument("--judge", action="store_true",
                     help="enable the Claude llm_judge (requires ANTHROPIC_API_KEY)")
+    ap.add_argument("--no-resume", action="store_true",
+                    help="ignore any existing results file and score every item afresh")
+    ap.add_argument("--no-warmup", action="store_true",
+                    help="skip the warmup call (the first cold-model call is slowest)")
     args = ap.parse_args(argv)
 
     items = load_items(args.items)
@@ -97,16 +133,60 @@ def main(argv: list[str] | None = None) -> int:
         deferral_judge = make_deferral_judge()  # always-on safety second opinion
 
     model = models.from_spec(args.model)
-    results = run(items, model, judge, deferral_judge)
-
     args.out.mkdir(parents=True, exist_ok=True)
-    safe_name = args.model.replace(":", "_").replace("/", "_")
-    (args.out / f"{safe_name}_results.jsonl").write_text(
+    tag = f"{args.model.replace(':', '_').replace('/', '_')}_{args.split}"
+    results_path = args.out / f"{tag}_results.jsonl"
+
+    # Resume: an item is "done" if a prior run scored it (score set, not an error).
+    # Errored and pending items are re-attempted. --no-resume starts clean.
+    prior = {} if args.no_resume else read_results_log(results_path)
+    if args.no_resume and results_path.exists():
+        results_path.unlink()
+    done = {iid for iid, r in prior.items()
+            if r.get("score") is not None and not (r.get("detail") or {}).get("error")}
+    todo = [it for it in items if it["id"] not in done]
+    total = len(items)
+    print(f"[run] {args.model} | split={args.split} | {total} items "
+          f"({len(done)} already scored, {len(todo)} to do) -> {results_path}",
+          file=sys.stderr)
+
+    if todo and not args.no_warmup:
+        try:
+            model(WARMUP_PROMPT)             # trigger cold model load before timing items
+            print("[run] model warmed up", file=sys.stderr)
+        except Exception as e:               # noqa: BLE001 — warmup is best-effort
+            print(f"[run] warmup skipped ({type(e).__name__}); first item will load the model",
+                  file=sys.stderr)
+
+    # Incremental: append each result as it completes and flush, so a crash mid-run
+    # never loses prior work. A failed item is recorded and the run continues.
+    failed: list[str] = []
+    with results_path.open("a", encoding="utf-8") as log:
+        for i, it in enumerate(todo, 1):
+            try:
+                response = model(it["question"])
+                r = score_item(it, response, judge, deferral_judge)
+            except Exception as e:           # noqa: BLE001 — isolate one bad item
+                r = error_result(it, e)
+                failed.append(it["id"])
+            log.write(json.dumps(r, ensure_ascii=False) + "\n")
+            log.flush()
+            status = "ERROR" if (r.get("detail") or {}).get("error") else f"passed={r['passed']}"
+            print(f"[{len(done) + i}/{total}] {it['id']} {status}", file=sys.stderr)
+
+    # Render the scorecard from the full (resumed + new) set, deduped, in item order.
+    merged = read_results_log(results_path)
+    results = [merged[it["id"]] for it in items if it["id"] in merged]
+    results_path.write_text(
         "\n".join(json.dumps(r, ensure_ascii=False) for r in results) + "\n",
-        encoding="utf-8")
+        encoding="utf-8")                    # rewrite clean (dedup any re-run lines)
     card = scorecard.render(args.model, results)
-    (args.out / f"{safe_name}_scorecard.md").write_text(card, encoding="utf-8")
+    (args.out / f"{tag}_scorecard.md").write_text(card, encoding="utf-8")
     print(card)
+    errored = [r["id"] for r in results if (r.get("detail") or {}).get("error")]
+    if errored:
+        print(f"\n[run] {len(errored)} item(s) FAILED after retries (re-run to retry "
+              f"just these): {', '.join(errored)}", file=sys.stderr)
     return 0
 
 

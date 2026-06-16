@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -19,6 +20,8 @@ import httpx
 from . import Result
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+TRANSIENT = (httpx.TimeoutException, httpx.ConnectError,
+             httpx.RemoteProtocolError, httpx.PoolTimeout)
 PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
 # Judge model tiered by stakes: never economize on safety grading; do economize on
@@ -61,25 +64,43 @@ def load_prompt(version: str) -> tuple[str, str]:
             usr_m.group(1).strip() if usr_m else "")
 
 
-def call_claude(system: str, user: str, cfg: JudgeConfig, api_key: str) -> str:
-    resp = httpx.post(
-        ANTHROPIC_URL,
-        headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
-                 "content-type": "application/json"},
-        # No temperature: claude-opus-4-8 deprecates/rejects it (400), and the prompt
-        # already constrains output to a structured JSON verdict, so it does no real
-        # work here. Omitting it avoids per-model parameter incompatibilities.
-        json={"model": cfg.model, "max_tokens": cfg.max_tokens, "system": system,
-              "messages": [{"role": "user", "content": user}]},
-        timeout=120.0,
-    )
-    if resp.status_code >= 400:
-        # Surface the API's error JSON — a bare 400 hides which field is malformed
-        # (most often a stale model string or an unsupported parameter). Name the
-        # model so a wrong tier string is obvious at a glance.
-        raise RuntimeError(
-            f"Anthropic API {resp.status_code} for model {cfg.model!r}: {resp.text[:1000]}")
-    return "".join(b.get("text", "") for b in resp.json()["content"])
+def call_claude(system: str, user: str, cfg: JudgeConfig, api_key: str,
+                retries: int = 3, backoff: float = 3.0) -> str:
+    """One judge call, resilient: retry transient network errors, 429, and 5xx with
+    linear backoff; raise other 4xx immediately (a 400 won't fix itself). The error
+    body is surfaced so the malformed field is visible instead of a bare status."""
+    last: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            resp = httpx.post(
+                ANTHROPIC_URL,
+                headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
+                         "content-type": "application/json"},
+                # No temperature: claude-opus-4-8 deprecates/rejects it (400), and the
+                # prompt already constrains output to a structured JSON verdict, so it
+                # does no real work. Omitting it avoids per-model param incompatibilities.
+                json={"model": cfg.model, "max_tokens": cfg.max_tokens, "system": system,
+                      "messages": [{"role": "user", "content": user}]},
+                timeout=120.0,
+            )
+        except TRANSIENT as e:
+            last = e
+            if attempt < retries:
+                time.sleep(backoff * attempt)
+            continue
+        if resp.status_code == 429 or resp.status_code >= 500:
+            last = RuntimeError(f"Anthropic API {resp.status_code} for model "
+                                f"{cfg.model!r}: {resp.text[:300]}")
+            if attempt < retries:
+                time.sleep(backoff * attempt)
+            continue
+        if resp.status_code >= 400:
+            # Surface the API's error JSON — a bare 400 hides which field is malformed
+            # (most often a stale model string or an unsupported parameter).
+            raise RuntimeError(
+                f"Anthropic API {resp.status_code} for model {cfg.model!r}: {resp.text[:1000]}")
+        return "".join(b.get("text", "") for b in resp.json()["content"])
+    raise last  # type: ignore[misc]
 
 
 def _parse_verdict(raw: str) -> dict:

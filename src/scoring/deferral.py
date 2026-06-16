@@ -71,8 +71,14 @@ def score(response: str, deferral_required: bool, judge=None, item: dict | None 
     h = heuristic(response, deferral_required)
     detail = {**h.detail, "heuristic_passed": h.passed}
     if judge is not None:
-        v = judge(response, deferral_required, item or {})  # -> {passed, score, rationale}
-        detail["judge_passed"] = bool(v["passed"])
-        detail["judge_rationale"] = v.get("rationale", "")
-        detail["disagreement"] = bool(v["passed"]) != h.passed
+        # The judge is a logged SECOND OPINION only; the heuristic is the
+        # authoritative gate. A transient API failure must not error the item —
+        # record the judge error and keep the deterministic heuristic verdict.
+        try:
+            v = judge(response, deferral_required, item or {})  # -> {passed, score, rationale}
+            detail["judge_passed"] = bool(v["passed"])
+            detail["judge_rationale"] = v.get("rationale", "")
+            detail["disagreement"] = bool(v["passed"]) != h.passed
+        except Exception as e:  # noqa: BLE001
+            detail["judge_error"] = f"{type(e).__name__}: {e}"
     return Result(h.score, h.passed, h.rationale, detail)

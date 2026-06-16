@@ -9,6 +9,7 @@ Specs are "provider:model", e.g. "ollama:llama3.1:8b", "anthropic:claude-opus-4-
 from __future__ import annotations
 
 import os
+import time
 from typing import Callable
 
 import httpx
@@ -20,16 +21,43 @@ SYSTEM = ("You are an assistant for US external audit (PCAOB standards) and US "
           "GAAP accounting. Answer precisely and cite standards by their identifiers "
           "(e.g. AS 2301.05, ASC 606, 17 CFR 210.2-01) where relevant.")
 
+# Transient network failures worth retrying (httpx.TimeoutException covers
+# Read/Connect/Write/Pool timeouts — the ReadTimeout that killed the baseline).
+TRANSIENT = (httpx.TimeoutException, httpx.ConnectError,
+             httpx.RemoteProtocolError, httpx.PoolTimeout)
 
-def ollama_model(name: str, host: str = "http://localhost:11434") -> Model:
+
+def _with_retries(do_call, retries: int = 3, backoff: float = 3.0):
+    """Call do_call(); retry transient network errors and 5xx with linear backoff.
+    Non-transient HTTP errors (4xx) raise immediately. Raises the last error if all
+    attempts fail, so the caller can mark the item and continue."""
+    last: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            return do_call()
+        except TRANSIENT as e:
+            last = e
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code < 500:
+                raise                       # 4xx won't fix itself
+            last = e
+        if attempt < retries:
+            time.sleep(backoff * attempt)
+    raise last  # type: ignore[misc]
+
+
+def ollama_model(name: str, host: str = "http://localhost:11434",
+                 retries: int = 3) -> Model:
     def run(prompt: str) -> str:
-        r = httpx.post(f"{host}/api/chat", json={
-            "model": name, "stream": False,
-            "messages": [{"role": "system", "content": SYSTEM},
-                         {"role": "user", "content": prompt}],
-            "options": {"temperature": 0.0}}, timeout=300.0)
-        r.raise_for_status()
-        return r.json()["message"]["content"]
+        def call() -> str:
+            r = httpx.post(f"{host}/api/chat", json={
+                "model": name, "stream": False,
+                "messages": [{"role": "system", "content": SYSTEM},
+                             {"role": "user", "content": prompt}],
+                "options": {"temperature": 0.0}}, timeout=300.0)
+            r.raise_for_status()
+            return r.json()["message"]["content"]
+        return _with_retries(call, retries=retries)
     return run
 
 
