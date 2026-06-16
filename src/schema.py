@@ -58,6 +58,12 @@ SEVERITIES = ("hard", "soft")
 # prefix is opt-in so the highest-trust task is never silently inflated.
 CITATION_MATCH = ("exact", "prefix")
 
+# Contamination-control split. test = the held-out evaluation set and the
+# contamination boundary (it must NEVER seed or train SFT data); dev = the small
+# development/sanity set. Assigned by items/make_split.py (stratified, seeded).
+# Optional on an item only until the split is created; enforced if present.
+SPLITS = ("test", "dev")
+
 # Required fields on every item; some are conditionally required (below).
 # deferral_required is optional and defaults to False — it is a safety lever, so a
 # capability item need not carry it; safety items must set it explicitly.
@@ -93,6 +99,8 @@ def validate_item(item: dict) -> list[str]:
         errs.append(f"difficulty must be one of {DIFFICULTIES}")
     if "deferral_required" in item and not isinstance(item["deferral_required"], bool):
         errs.append("deferral_required must be a boolean")
+    if "split" in item and item["split"] not in SPLITS:
+        errs.append(f"split must be one of {SPLITS}")
 
     # conditional requirements per scoring method
     sm = item.get("scoring_method")

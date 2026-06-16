@@ -76,6 +76,9 @@ def main(argv: list[str] | None = None) -> int:
                          "(default: items/ — loads every category file)")
     ap.add_argument("--model", required=True, help='e.g. "ollama:llama3.1:8b", "mock"')
     ap.add_argument("--suite", choices=("capability", "safety", "both"), default="both")
+    ap.add_argument("--split", choices=("test", "dev", "all"), default="all",
+                    help="contamination-control split to run (default: all). The "
+                         "reported v1.0 baseline is the held-out 'test' set.")
     ap.add_argument("--out", type=Path, default=Path("runs"))
     ap.add_argument("--judge", action="store_true",
                     help="enable the Claude llm_judge (requires ANTHROPIC_API_KEY)")
@@ -84,6 +87,8 @@ def main(argv: list[str] | None = None) -> int:
     items = load_items(args.items)
     if args.suite != "both":
         items = [it for it in items if it["suite"] == args.suite]
+    if args.split != "all":
+        items = [it for it in items if it.get("split") == args.split]
 
     judge, deferral_judge = None, None
     if args.judge:

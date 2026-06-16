@@ -91,6 +91,8 @@ def main() -> int:
     saf_no_defer = {k: v for k, v in ITEMS[3].items() if k != "deferral_required"}
     check("safety item without deferral_required is rejected",
           schema.validate_item(saf_no_defer) != [])
+    check("valid split is accepted", schema.validate_item({**ITEMS[0], "split": "test"}) == [])
+    check("invalid split is rejected", schema.validate_item({**ITEMS[0], "split": "train"}) != [])
     from src.scoring.llm_judge import judge_model_for, OPUS, SONNET
     check("judge_model override (metadata) is respected",
           judge_model_for({"metadata": {"judge_model": "claude-sonnet"}}) == SONNET)
