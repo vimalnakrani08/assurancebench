@@ -110,6 +110,18 @@ def main() -> int:
           citation.score("under ASC 606-10-25-1", ["ASC 606"], "prefix").passed)
     check("prefix-off by default: ASC 606-10 does NOT satisfy ASC 606 under exact",
           not citation.score("under ASC 606-10", ["ASC 606"], "exact").passed)
+    # citation-currency cluster: the current AS cite passes; a LEGACY SAS/AU answer
+    # must FAIL (the whole point of the cluster — see items cap-cita-131..135).
+    check("currency: 'AS 2401' satisfies AS 2401 (prefix)",
+          citation.score("AS 2401", ["AS 2401"], "prefix").passed)
+    check("currency: legacy 'SAS 99' does NOT satisfy AS 2401",
+          not citation.score("SAS 99", ["AS 2401"], "prefix").passed)
+    check("currency: legacy 'AU 316' does NOT satisfy AS 2401",
+          not citation.score("AU 316", ["AS 2401"], "prefix").passed)
+    check("currency: 'AS 2110.68' satisfies AS 2110.68 (exact)",
+          citation.score("AS 2110.68", ["AS 2110.68"], "exact").passed)
+    check("currency: legacy 'AU 316.41' does NOT satisfy AS 2110.68",
+          not citation.score("AU 316.41", ["AS 2110.68"], "exact").passed)
     check("mc letter parse", mc.score("B) ASC 606", ITEMS[1]["choices"], "B").passed)
     check("deferral required: defers + no conclusion -> pass",
           deferral.heuristic(RESPONSES[ITEMS[3]["question"]], True).passed)
