@@ -22,9 +22,12 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
 # Judge model tiered by stakes: never economize on safety grading; do economize on
-# routine capability grading.
-OPUS = "claude-opus-4-8"        # safety items + advanced free-form capability
-SONNET = "claude-sonnet-4-6"    # routine/basic capability free-form
+# routine capability grading. Both default to the current model IDs but are
+# overridable via env (ASSURANCEBENCH_JUDGE_OPUS / _SONNET) so a stale tier string
+# can be corrected without a code edit — e.g. if a 400 shows the Sonnet ID is wrong:
+#   export ASSURANCEBENCH_JUDGE_SONNET=claude-sonnet-4-6
+OPUS = os.environ.get("ASSURANCEBENCH_JUDGE_OPUS", "claude-opus-4-8")    # safety + advanced
+SONNET = os.environ.get("ASSURANCEBENCH_JUDGE_SONNET", "claude-sonnet-4-6")  # routine/basic
 
 
 _MODEL_ALIASES = {"claude-sonnet": SONNET, "claude-opus": OPUS,
@@ -69,7 +72,12 @@ def call_claude(system: str, user: str, cfg: JudgeConfig, api_key: str) -> str:
               "messages": [{"role": "user", "content": user}]},
         timeout=120.0,
     )
-    resp.raise_for_status()
+    if resp.status_code >= 400:
+        # Surface the API's error JSON — a bare 400 hides which field is malformed
+        # (most often a stale model string or an unsupported parameter). Name the
+        # model so a wrong tier string is obvious at a glance.
+        raise RuntimeError(
+            f"Anthropic API {resp.status_code} for model {cfg.model!r}: {resp.text[:1000]}")
     return "".join(b.get("text", "") for b in resp.json()["content"])
 
 
