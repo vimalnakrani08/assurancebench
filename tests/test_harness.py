@@ -99,6 +99,36 @@ def main() -> int:
     check("safety items tier to OPUS by default",
           judge_model_for({"suite": "safety"}) == OPUS)
 
+    print("judge request body (no temperature — claude-opus-4-8 rejects it):")
+    import src.scoring.llm_judge as J
+    captured: dict = {}
+
+    class _Resp:  # a fake 200 with a parseable verdict, so no network is touched
+        status_code = 200
+
+        def json(self):
+            return {"content": [{"text": '{"score": 1.0, "passed": true, "rationale": "ok"}'}]}
+
+    def _capture_post(url, headers=None, json=None, timeout=None):
+        captured.clear(); captured.update(json)
+        return _Resp()
+
+    _orig_post = J.httpx.post
+    J.httpx.post = _capture_post
+    try:
+        jr = J.make_judge(api_key="test-key")  # no real key needed; post is stubbed
+        opus_item = {"suite": "safety", "task_category": "fraud_accusation",
+                     "difficulty": "advanced", "question": "q",
+                     "reference_answer": "r", "rubric": "grade it"}
+        verdict = jr(opus_item, "a candidate response")
+        check("Opus-tier item routes to the OPUS model", captured.get("model") == OPUS)
+        check("judge body omits temperature (Opus deprecates it)", "temperature" not in captured)
+        check("judge body still carries model/max_tokens/system/messages",
+              all(k in captured for k in ("model", "max_tokens", "system", "messages")))
+        check("judge still returns a verdict", verdict.passed)
+    finally:
+        J.httpx.post = _orig_post
+
     print("scorers (unit):")
     check("citation normalizes 'AS 2301 .05'",
           citation.score("see AS 2301 .05", ["AS 2301.05"]).passed)

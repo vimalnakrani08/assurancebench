@@ -49,7 +49,6 @@ class JudgeConfig:
     model: str = OPUS
     prompt_version: str = "v1"
     pass_threshold: float = 0.7
-    temperature: float = 0.0
     max_tokens: int = 512
 
 
@@ -67,8 +66,10 @@ def call_claude(system: str, user: str, cfg: JudgeConfig, api_key: str) -> str:
         ANTHROPIC_URL,
         headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
                  "content-type": "application/json"},
-        json={"model": cfg.model, "max_tokens": cfg.max_tokens,
-              "temperature": cfg.temperature, "system": system,
+        # No temperature: claude-opus-4-8 deprecates/rejects it (400), and the prompt
+        # already constrains output to a structured JSON verdict, so it does no real
+        # work here. Omitting it avoids per-model parameter incompatibilities.
+        json={"model": cfg.model, "max_tokens": cfg.max_tokens, "system": system,
               "messages": [{"role": "user", "content": user}]},
         timeout=120.0,
     )
