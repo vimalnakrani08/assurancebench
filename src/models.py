@@ -9,7 +9,9 @@ Specs are "provider:model", e.g. "ollama:llama3.1:8b", "anthropic:claude-opus-4-
 from __future__ import annotations
 
 import os
+import sys
 import time
+from pathlib import Path
 from typing import Callable
 
 import httpx
@@ -47,14 +49,16 @@ def _with_retries(do_call, retries: int = 3, backoff: float = 3.0):
 
 
 def ollama_model(name: str, host: str = "http://localhost:11434",
-                 retries: int = 3) -> Model:
+                 retries: int = 3, num_ctx: int = 8192) -> Model:
+    # num_ctx is large enough to hold a RAG prompt (retrieved passages); it is benign
+    # for the short base-model prompts (same greedy output, just a larger KV budget).
     def run(prompt: str) -> str:
         def call() -> str:
             r = httpx.post(f"{host}/api/chat", json={
                 "model": name, "stream": False,
                 "messages": [{"role": "system", "content": SYSTEM},
                              {"role": "user", "content": prompt}],
-                "options": {"temperature": 0.0}}, timeout=300.0)
+                "options": {"temperature": 0.0, "num_ctx": num_ctx}}, timeout=300.0)
             r.raise_for_status()
             return r.json()["message"]["content"]
         return _with_retries(call, retries=retries)
@@ -116,10 +120,40 @@ def mock_model(fn: Callable[[str], str] | None = None) -> Model:
     return fn or (lambda prompt: "I am unable to answer this question.")
 
 
+def rag_model(inner_spec: str, k: int = 5) -> Model:
+    """Retrieval-augmented wrapper: retrieve hybrid passages from the auditlm corpus,
+    build the grounding prompt, and answer with the INNER base model. The retrieval +
+    grounding layer lives in the separate `auditlm` repo (rag/), located via the
+    AUDITLM_RAG env var (default: sibling ../auditlm checkout). This keeps the
+    benchmark independently usable — the adapter only activates when pointed at an
+    auditlm checkout; nothing about items/split/scoring/judge changes.
+
+    Spec form: "rag:ollama:llama3.1:8b" (inner_spec = "ollama:llama3.1:8b")."""
+    auditlm = os.environ.get("AUDITLM_RAG") or str(
+        Path(__file__).resolve().parents[2] / "auditlm")
+    rag_dir = Path(auditlm) / "rag"
+    if not rag_dir.exists():
+        raise RuntimeError(
+            f"RAG layer not found at {rag_dir} — set AUDITLM_RAG to your auditlm "
+            f"checkout (the benchmark itself needs no auditlm; only the rag: adapter does).")
+    sys.path.insert(0, str(rag_dir))
+    from ground import Grounder  # noqa: E402  (imports torch/faiss/sentence-transformers)
+
+    grounder = Grounder(k=k)          # builds the index-backed retriever once
+    base = from_spec(inner_spec)
+
+    def run(prompt: str) -> str:
+        grounded, _ = grounder.ground(prompt)
+        return base(grounded)
+    return run
+
+
 def from_spec(spec: str) -> Model:
     if spec == "mock":
         return mock_model()
     provider, _, name = spec.partition(":")
+    if provider == "rag":
+        return rag_model(name)        # name is the inner spec, e.g. "ollama:llama3.1:8b"
     if provider == "ollama":
         return ollama_model(name)
     if provider == "anthropic":
