@@ -186,8 +186,11 @@ class VerifiedModel:
             "fabrications_caught": rep["fabrications_caught"],
             "out_of_corpus_stub_stripped": rep["out_of_corpus_stub_stripped"],
             "citations_total": rep["citations_total"],
+            # criterion-1 metric, measured on the labeled_answer actually returned below:
             "shown_fabrications": rep["shown_fabrications"],
+            "stripped_citations": rep["stripped_citations"],   # the named log (not shown in text)
             "source_chunk_ids": out["source_chunk_ids"],
+            "raw_output": out["raw_output"],                    # stored so rechecks never re-generate
         }
         return out["labeled_answer"]
 
