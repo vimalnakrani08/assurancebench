@@ -164,8 +164,12 @@ def main(argv: list[str] | None = None) -> int:
     with results_path.open("a", encoding="utf-8") as log:
         for i, it in enumerate(todo, 1):
             try:
+                if hasattr(model, "set_item"):       # Phase-4 verified: adapter, opt-in
+                    model.set_item(it)
                 response = model(it["question"])
                 r = score_item(it, response, judge, deferral_judge)
+                if getattr(model, "last_report", None) is not None:
+                    r["verification"] = model.last_report
             except Exception as e:           # noqa: BLE001 — isolate one bad item
                 r = error_result(it, e)
                 failed.append(it["id"])

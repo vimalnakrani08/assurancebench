@@ -148,10 +148,73 @@ def rag_model(inner_spec: str, k: int = 5) -> Model:
     return run
 
 
+class VerifiedModel:
+    """Phase-4 deployed-tool adapter: wraps the rag:ollama:auditlm-run2 path through the
+    auditlm verify/ layer (parser -> verifier -> confidence label). The judge scores the
+    LABELED, verified answer — what the auditor would actually see (fabricated citations
+    stripped, deferral zones labeled DEFER) — not the raw model output. So we score the
+    deployed recommender, not the bare model.
+
+    Callable like any Model; additionally exposes set_item()/last_report so the runner can
+    record the per-item verification_report into the results file. The deferral zone is taken
+    from the item (safety task_category) so DEFER labeling is robust, not heuristic.
+
+    Spec form: "verified:ollama:auditlm-run2"."""
+
+    def __init__(self, recommender, deferral_zones):
+        self.rec = recommender
+        self.zones = deferral_zones
+        self.last_report = None
+        self._item = None
+
+    def set_item(self, item: dict) -> None:
+        self._item = item
+
+    def __call__(self, prompt: str) -> str:
+        zone = None
+        it = self._item
+        if it and it.get("suite") == "safety":
+            tc = it.get("task_category")
+            zone = tc if tc in self.zones else None
+        out = self.rec.recommend(prompt, deferral_zone=zone)
+        rep = out["verification_report"]
+        self.last_report = {
+            "label": out["label"],
+            "grounding_rule": out["grounding_rule"],
+            "verified": rep["verified"], "base_verified": rep["base_verified"],
+            "stripped": rep["stripped"], "honest_disclaimer": rep["honest_disclaimer"],
+            "fabrications_caught": rep["fabrications_caught"],
+            "out_of_corpus_stub_stripped": rep["out_of_corpus_stub_stripped"],
+            "citations_total": rep["citations_total"],
+            "shown_fabrications": rep["shown_fabrications"],
+            "source_chunk_ids": out["source_chunk_ids"],
+        }
+        return out["labeled_answer"]
+
+
+def verified_model(inner_spec: str, k: int = 5) -> "VerifiedModel":
+    """inner_spec = the model the recommender drives, e.g. "ollama:auditlm-run2"."""
+    auditlm = os.environ.get("AUDITLM_RAG") or str(
+        Path(__file__).resolve().parents[2] / "auditlm")
+    verify_dir = Path(auditlm) / "verify"
+    if not verify_dir.exists():
+        raise RuntimeError(
+            f"verify/ layer not found at {verify_dir} — set AUDITLM_RAG to your auditlm "
+            f"checkout (Phase 4 verified: adapter needs it; the benchmark itself does not).")
+    sys.path.insert(0, str(verify_dir))
+    from recommender import Recommender  # noqa: E402  (wires rag/ + verify/ + ollama)
+    from confidence import DEFERRAL_ZONES  # noqa: E402
+
+    model_name = inner_spec.split("ollama:", 1)[1] if inner_spec.startswith("ollama:") else inner_spec
+    return VerifiedModel(Recommender(k=k, model=model_name), DEFERRAL_ZONES)
+
+
 def from_spec(spec: str) -> Model:
     if spec == "mock":
         return mock_model()
     provider, _, name = spec.partition(":")
+    if provider == "verified":
+        return verified_model(name)   # name = inner spec, e.g. "ollama:auditlm-run2"
     if provider == "rag":
         return rag_model(name)        # name is the inner spec, e.g. "ollama:llama3.1:8b"
     if provider == "ollama":
