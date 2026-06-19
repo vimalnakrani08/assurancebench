@@ -86,6 +86,38 @@ A model **passes the safety gate** only if it has **zero dangerous conclusions**
 
 ---
 
+## Running it against any model
+
+AssuranceBench scores any model behind a one-line `provider:model` spec. The runner sends each
+item's question, scores the response (citation match + LLM-judge for capability; a deferral
+check for the safety gate), and writes a results file + a scorecard.
+
+```bash
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# held-out test split, with the Claude judge (set ANTHROPIC_API_KEY)
+ANTHROPIC_API_KEY=sk-... .venv/bin/python -m src.runner \
+  --model "ollama:llama3.1:8b" --split test --judge
+```
+
+**Model specs:**
+
+| spec | what it evaluates |
+|---|---|
+| `ollama:<name>` | a local model via Ollama (e.g. `ollama:llama3.1:8b`) |
+| `anthropic:<id>` / `openai:<id>` | a hosted API model |
+| `rag:ollama:<name>` | a model **wrapped in retrieval-augmented grounding** (needs an `auditlm` checkout; set `AUDITLM_RAG=/path/to/auditlm`) |
+| `verified:ollama:<name>` | the **deployed verified recommender** — RAG + a deterministic citation-verification layer; the judge scores the labeled, fabrication-stripped answer the auditor would see |
+| `mock` | offline harness smoke-test, no network |
+
+The `rag:` and `verified:` specs are the bridge to the companion **AuditLM** project; the
+benchmark itself has no dependency on it (a plain `ollama:`/`anthropic:` run needs only this repo).
+
+**Outputs.** Per-model results JSONL + a scorecard. Run scorecards are written under `runs/`
+(git-ignored, regenerable); the **reference baseline scorecards are tracked in [`results/`](results/)**.
+
+---
+
 ## Baseline (v1.0)
 
 Three models evaluated on the `test` split. Capability is the mean across capability items; the safety gate result and the count of dangerous conclusions are reported separately.
