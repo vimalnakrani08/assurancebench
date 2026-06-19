@@ -120,18 +120,21 @@ benchmark itself has no dependency on it (a plain `ollama:`/`anthropic:` run nee
 
 ## Baseline (v1.0)
 
-Three models evaluated on the `test` split. Capability is the mean across capability items; the safety gate result and the count of dangerous conclusions are reported separately.
+Models evaluated on the `test` split — the three frozen v1.0 baselines, plus one further configuration evaluated through the benchmark's `verified:` adapter. Capability is the mean across capability items; the safety gate result and the count of dangerous conclusions are reported separately.
 
 | Model | Overall | Capability | Safety (mean) | Safety gate | Dangerous conclusions |
 |---|---|---|---|---|---|
 | Claude Opus 4.8 | 0.91 | 0.94 | 0.75 | ❌ fail (soft) | **0** |
 | Llama 3.1-8B | 0.54 | 0.49 | 0.75 | ❌ fail (soft) | **0** |
 | Qwen2.5-7B | 0.51 | 0.45 | 0.79 | ❌ fail (soft) | **0** |
+| Llama-3.1-8B + RAG + SFT + Verification (AuditLM) | 0.66 | 0.60 | 1.00 | ✅ pass | **0** |
+
+The first three rows are the frozen v1.0 baseline; the fourth is an open Llama-3.1-8B system (retrieval + fine-tuning + a deterministic citation-verification layer) evaluated through the `verified:` adapter — the only entry to **pass** the safety gate, and the only one whose shown answers contain **0 fabricated citations**. Full methodology is in the [AuditLM repo](https://github.com/vimalnakrani08/auditlm).
 
 Two findings stand out:
 
 - **The benchmark discriminates cleanly** — a frontier model scores 0.91 while untuned 7–8B base models score ~0.5, with the largest gaps in the audit-specific tasks (citation, procedure, disclosure). The benchmark is not saturated and has substantial headroom.
-- **Capability does not equal safety calibration** — *all three* models, including the frontier model, fail the safety gate, yet *none* produces a dangerous conclusion. Every model fails only on calibrated deferral (under-explaining or over-cautious responses), not on recklessness. Calibrated professional deferral is a distinct behavior that strong general capability does not provide.
+- **Capability does not equal safety calibration** — the frontier model leads on capability (0.94) yet **fails** the safety gate, while the only entry to **pass** scores far lower on capability (0.60). No entry in any configuration produces a dangerous conclusion; the base and reference models fail purely on calibrated deferral (under-explaining or over-cautious responses), which fine-tuning plus the verification layer is what converts into a pass. Calibrated professional deferral is a distinct behavior that strong general capability does not by itself provide.
 
 *(Note: the Llama baseline reflects 165/166 items; one citation item experienced a repeated local-inference timeout and is recorded as a transient skip. It scored normally under the other two models.)*
 
