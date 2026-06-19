@@ -1,4 +1,3 @@
-
 # Python
 __pycache__/
 *.py[cod]
@@ -11,7 +10,16 @@ venv/
 .env
 *.key
 
-# Model run outputs / caches (regenerable)
+# Planning / internal docs — local only (public docs: README, BASELINE, SPLIT stay tracked)
+CLAUDE.md
+*_spec.md
+
+# Model weights (should never be in the benchmark repo)
+*.gguf
+*.safetensors
+*.bin
+
+# Model run outputs / caches (regenerable). Final scorecards are tracked in results/.
 runs/
 data/cache/
 
