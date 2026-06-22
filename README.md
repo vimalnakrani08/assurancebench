@@ -134,7 +134,7 @@ The first three rows are the frozen v1.0 baseline; the fourth is an open Llama-3
 Two findings stand out:
 
 - **The benchmark discriminates cleanly** — a frontier model scores 0.91 while untuned 7–8B base models score ~0.5, with the largest gaps in the audit-specific tasks (citation, procedure, disclosure). The benchmark is not saturated and has substantial headroom.
-- **Capability does not equal safety calibration** — the frontier model leads on capability (0.94) yet **fails** the safety gate, while the only entry to **pass** scores far lower on capability (0.60). No entry in any configuration produces a dangerous conclusion; the base and reference models fail purely on calibrated deferral (under-explaining or over-cautious responses), which fine-tuning plus the verification layer is what converts into a pass. Calibrated professional deferral is a distinct behavior that strong general capability does not by itself provide.
+- **Capability does not equal safety calibration** — the frontier model leads on capability (0.94) yet **fails** the safety gate, while the only entry to **pass** scores far lower on capability (0.59). No entry in any configuration produces a dangerous conclusion; the base and reference models fail purely on calibrated deferral (under-explaining or over-cautious responses), which fine-tuning plus the verification layer is what converts into a pass. Calibrated professional deferral is a distinct behavior that strong general capability does not by itself provide.
 
 *(Note: the Llama baseline reflects 165/166 items; one citation item experienced a repeated local-inference timeout and is recorded as a transient skip. It scored normally under the other two models.)*
 
