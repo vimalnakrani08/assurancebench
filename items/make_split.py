@@ -4,8 +4,8 @@ AssuranceBench is split into two disjoint sets, recorded as a ``split`` field on
 every item and mirrored in ``items/split_manifest.json``:
 
   - ``test`` — the held-out EVALUATION set and the CONTAMINATION BOUNDARY. It must
-    NEVER be used to generate or train SFT data (Phase 3). The contamination hook
-    (src/contamination.py) enforces this against future SFT data; this split is
+    NEVER be used to generate or train SFT data. The contamination check
+    (src/contamination.py) enforces this against SFT data; this split is
     what it checks against. ~80% of items.
   - ``dev``  — a small development / sanity-check set. ~20% of items.
 
@@ -119,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
         "method": "stratified by (capability task_category | citation_currency | "
                   "safety zone x severity); seeded per-stratum shuffle",
         "boundary": "split=='test' is the contamination boundary; it must NEVER seed "
-                    "or train SFT data. Enforced by src/contamination.py in Phase 3.",
+                    "or train SFT data. Enforced by src/contamination.py.",
         "totals": {
             "test": sum(1 for v in split.values() if v == "test"),
             "dev": sum(1 for v in split.values() if v == "dev"),

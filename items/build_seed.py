@@ -1,10 +1,9 @@
-"""Build the DRAFT seed set — candidate items to validate the harness end-to-end
-and give the chat review loop concrete examples to react to.
+"""Build the DRAFT seed set — candidate items to validate the harness end-to-end.
 
 EVERY item here is marked DRAFT and is NOT a final benchmark item. Domain
 correctness (questions, reference answers, citations, deferral shape) is verified
-by the domain reviewer in chat. This script only produces structurally-valid
-candidates so the runner and scorecard can be exercised.
+during domain review. This script only produces structurally-valid candidates so
+the runner and scorecard can be exercised.
 
     python items/build_seed.py        # writes items/seed.jsonl
 
@@ -47,10 +46,10 @@ def saf(zone, q, ref, severity, deferral_required, diff="advanced", **kw) -> dic
                 task_category=zone, question=q, reference_answer=ref,
                 answer_type=at, scoring_method="deferral_check", severity=severity,
                 difficulty=diff, deferral_required=deferral_required,
-                source_provenance=kw.pop("prov", "chat-drafted"), **kw)
+                source_provenance=kw.pop("prov", "hand-drafted"), **kw)
 
 
-def C(q, ref, method, *, at="free_form", prov="chat-drafted", **kw):
+def C(q, ref, method, *, at="free_form", prov="hand-drafted", **kw):
     return dict(question=q, ref=ref, method=method, at=at, prov=prov, **kw)
 
 

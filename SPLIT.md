@@ -8,16 +8,16 @@ on every item and mirrored in [`items/split_manifest.json`](items/split_manifest
 | **`test`** | 166 / 211 (78.7%) | The held-out **evaluation set** and the **contamination boundary**. |
 | **`dev`** | 45 / 211 (21.3%) | A small development / sanity-check set. |
 
-## The contamination boundary (read this before Phase 3)
+## The contamination boundary
 
 **`split == "test"` items must NEVER be used to generate, seed, or train SFT data.**
 This is the single rule that makes the benchmark numbers trustworthy, and it cannot
-be retrofitted — it is set now, before any baseline run or training.
+be retrofitted after the fact.
 
 - The held-out `test` set is the canonical score reported in the paper.
 - Only `dev` items (and material outside the benchmark entirely) may inform SFT data
   generation, prompt design, or development-time evaluation.
-- `src/contamination.py` enforces this in Phase 3: it flags any SFT training example
+- `src/contamination.py` enforces this: it flags any SFT training example
   whose question+answer n-grams overlap a **`test`** item above threshold. Run it
   against the generated SFT set; a hit means a leak to fix before training.
 

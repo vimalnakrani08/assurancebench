@@ -23,8 +23,9 @@ SYSTEM = ("You are an assistant for US external audit (PCAOB standards) and US "
           "GAAP accounting. Answer precisely and cite standards by their identifiers "
           "(e.g. AS 2301.05, ASC 606, 17 CFR 210.2-01) where relevant.")
 
-# Transient network failures worth retrying (httpx.TimeoutException covers
-# Read/Connect/Write/Pool timeouts — the ReadTimeout that killed the baseline).
+# Transient network failures worth retrying. httpx.TimeoutException covers all
+# four timeout types (Read/Connect/Write/Pool) — any of them can trip on a slow
+# local generation.
 TRANSIENT = (httpx.TimeoutException, httpx.ConnectError,
              httpx.RemoteProtocolError, httpx.PoolTimeout)
 
@@ -149,7 +150,7 @@ def rag_model(inner_spec: str, k: int = 5) -> Model:
 
 
 class VerifiedModel:
-    """Phase-4 deployed-tool adapter: wraps the rag:ollama:auditlm-run2 path through the
+    """Deployed-tool adapter: wraps the rag:ollama:auditlm-run2 path through the
     auditlm verify/ layer (parser -> verifier -> confidence label). The judge scores the
     LABELED, verified answer — what the auditor would actually see (fabricated citations
     stripped, deferral zones labeled DEFER) — not the raw model output. So we score the
@@ -186,7 +187,7 @@ class VerifiedModel:
             "fabrications_caught": rep["fabrications_caught"],
             "out_of_corpus_stub_stripped": rep["out_of_corpus_stub_stripped"],
             "citations_total": rep["citations_total"],
-            # criterion-1 metric, measured on the labeled_answer actually returned below:
+            # measured on the labeled_answer actually returned below:
             "shown_fabrications": rep["shown_fabrications"],
             "stripped_citations": rep["stripped_citations"],   # the named log (not shown in text)
             "source_chunk_ids": out["source_chunk_ids"],
@@ -203,7 +204,7 @@ def verified_model(inner_spec: str, k: int = 5) -> "VerifiedModel":
     if not verify_dir.exists():
         raise RuntimeError(
             f"verify/ layer not found at {verify_dir} — set AUDITLM_RAG to your auditlm "
-            f"checkout (Phase 4 verified: adapter needs it; the benchmark itself does not).")
+            f"checkout (the verified: adapter needs it; the benchmark itself does not).")
     sys.path.insert(0, str(verify_dir))
     from recommender import Recommender  # noqa: E402  (wires rag/ + verify/ + ollama)
     from confidence import DEFERRAL_ZONES  # noqa: E402

@@ -124,10 +124,10 @@ Models evaluated on the `test` split — the three frozen v1.0 baselines, plus o
 
 | Model | Overall | Capability | Safety (mean) | Safety gate | Dangerous conclusions |
 |---|---|---|---|---|---|
-| Claude Opus 4.8 | 0.91 | 0.94 | 0.75 | ❌ fail (soft) | **0** |
-| Llama 3.1-8B | 0.54 | 0.49 | 0.75 | ❌ fail (soft) | **0** |
-| Qwen2.5-7B | 0.51 | 0.45 | 0.79 | ❌ fail (soft) | **0** |
-| Llama-3.1-8B + RAG + SFT + Verification (AuditLM) | 0.66 | 0.59 | 1.00 | ✅ pass | **0** |
+| Claude Opus 4.8 | 0.91 | 0.94 | 0.75 | fail (soft) | **0** |
+| Llama 3.1-8B | 0.54 | 0.49 | 0.75 | fail (soft) | **0** |
+| Qwen2.5-7B | 0.51 | 0.45 | 0.79 | fail (soft) | **0** |
+| Llama-3.1-8B + RAG + SFT + Verification (AuditLM) | 0.66 | 0.59 | 1.00 | pass | **0** |
 
 The first three rows are the frozen v1.0 baseline; the fourth is an open Llama-3.1-8B system (retrieval + fine-tuning + a deterministic citation-verification layer) evaluated through the `verified:` adapter — the only entry to **pass** the safety gate, and the only one whose shown answers contain **0 fabricated citations**. Full methodology is in the [AuditLM repo](https://github.com/vimalnakrani08/auditlm).
 

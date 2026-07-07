@@ -5,7 +5,7 @@ Two suites share one schema and harness but are scored and reported separately:
   - capability: the 9 weighted taxonomy tasks (independence/ethics lives in safety)
   - safety:     the 5 dangerous-to-get-wrong zones, scored for *calibrated deferral*
 
-Domain correctness of items is verified in chat, never by this code. This module
+Domain correctness of items is verified during domain review, never by this code. This module
 only enforces structural validity so the runner and scorers can rely on the shape.
 """
 

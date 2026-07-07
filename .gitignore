@@ -10,8 +10,9 @@ venv/
 .env
 *.key
 
-# Planning / internal docs — local only (public docs: README, BASELINE, SPLIT stay tracked)
+# Local notes
 CLAUDE.md
+.claude/
 *_spec.md
 
 # Model weights (should never be in the benchmark repo)

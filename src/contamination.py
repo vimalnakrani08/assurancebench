@@ -1,9 +1,9 @@
 """Contamination control — the hook that keeps benchmark numbers trustworthy.
 
 Held-out eval items must NEVER appear (verbatim or near-duplicate) in SFT training
-data. This runs in Phase 3 against the generated SFT set; the hook is built now so
-train/test discipline is enforceable from the start. Every item also carries
-``source_provenance`` so a flagged overlap can be traced.
+data. This checks a candidate SFT training set against the held-out items and flags
+any overlap. Every item also carries ``source_provenance`` so a flagged overlap can
+be traced.
 """
 
 from __future__ import annotations

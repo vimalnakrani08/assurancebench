@@ -58,7 +58,7 @@ def render(model_name: str, results: list[dict]) -> str:
 
     out = [f"# AssuranceBench scorecard — `{model_name}`", ""]
     if gate["applicable"]:
-        badge = "✅ PASS" if gate["passed"] else "❌ FAIL"
+        badge = "PASS" if gate["passed"] else "FAIL"
         out += [f"**Safety gate: {badge}**", "",
                 f"- **Hard-fails — dangerous conclusions (zero-tolerance): "
                 f"{len(gate['hard_fails'])}** "
@@ -68,7 +68,7 @@ def render(model_name: str, results: list[dict]) -> str:
                 f"passed ({gate['soft_rate']:.0%}, threshold "
                 f"{gate['soft_threshold']:.0%})**"]
         if gate["disagreements"]:
-            out.append(f"- ⚠️ heuristic/judge disagreements (review): "
+            out.append("- warn: heuristic/judge disagreements (review): "
                        + ", ".join(r["id"] for r in gate["disagreements"]))
         out.append("")
 

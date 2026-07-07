@@ -2,7 +2,7 @@
   "seed": 20260616,
   "dev_fraction": 0.2,
   "method": "stratified by (capability task_category | citation_currency | safety zone x severity); seeded per-stratum shuffle",
-  "boundary": "split=='test' is the contamination boundary; it must NEVER seed or train SFT data. Enforced by src/contamination.py in Phase 3.",
+  "boundary": "split=='test' is the contamination boundary; it must NEVER seed or train SFT data. Enforced by src/contamination.py.",
   "totals": {
     "test": 166,
     "dev": 45,

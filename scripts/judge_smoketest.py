@@ -6,7 +6,7 @@ each, the HTTP status and (on failure) the API's error JSON, then a diagnosis.
     python scripts/judge_smoketest.py
 
 Probes, in order, so a 400 is pinned to a precise cause:
-  1. minimal call -> OPUS   (your confirmed-good baseline; sanity)
+  1. minimal call -> OPUS   (known-good baseline; sanity check)
   2. minimal call -> SONNET (isolates the Sonnet tier model STRING)
   3. full judge body -> a Sonnet-tier item (system + temperature + templated user)
   4. full judge body -> an Opus-tier item
