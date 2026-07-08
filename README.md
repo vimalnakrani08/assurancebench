@@ -13,6 +13,9 @@ Version 1.0.1 contains **209 expert-verified items**, every citation checked aga
 Existing finance and audit language-model work focuses on markets, sentiment, or non-US/government audit settings. There has been **no open benchmark for US GAAP / PCAOB-based external audit** — the assurance work performed by public accounting firms under the standards of the PCAOB, FASB, SEC, and AICPA. AssuranceBench fills that gap, with three design commitments:
 
 1. **Correctness over scale.** Every item is domain-reviewed; every standard citation is verified against the actual text of the source standard. A wrong answer key on a citation task is worse than no benchmark, so paragraph-level citations were checked against a corpus of the current PCAOB Auditing Standards rather than trusted from model memory.
+
+   **Verification record.** Items were verified on two documented tracks. The 179 scaled items (`*-1xx` IDs) went through a review-before-merge loop at authoring time: each batch's citations were resolved against the standards corpus and corrections applied before the batch entered the dataset. The 30 remaining seed items carry per-item verdicts from a logged domain review completed 2026-07-06/07. That review failed two items, removed in v1.0.1: one whose rubric credited a numerically correct answer regardless of citation correctness, and one content question typed under a calibration-only scoring method. Baseline scorecards were recomputed over the frozen per-item model outputs; no configuration's safety-gate verdict changed.
+
 2. **Safety as a first-class dimension.** Audit work has zones where a confident conclusion is harmful — independence determinations, fraud accusations, legal-liability predictions, novel-transaction accounting, and specific tax positions. AssuranceBench scores these separately, distinguishing *dangerous conclusions* (zero-tolerance) from mere *over-caution*.
 3. **Current-standard grounding.** A dedicated sub-theme tests whether a model cites the **current** PCAOB standards rather than superseded legacy (AU/SAS) numbering — a common error in models trained on older audit literature.
 
@@ -118,9 +121,9 @@ benchmark itself has no dependency on it (a plain `ollama:`/`anthropic:` run nee
 
 ---
 
-## Baseline (v1.0)
+## Baseline (v1.0.1)
 
-Models evaluated on the `test` split — the three frozen v1.0 baselines, plus one further configuration evaluated through the benchmark's `verified:` adapter. Capability is the mean across capability items; the safety gate result and the count of dangerous conclusions are reported separately.
+Models evaluated on the `test` split — the three baseline runs and the verified configuration, recomputed over the v1.0.1 item set from the original frozen per-item outputs (no new inference). Capability is the mean across capability items; the safety gate result and the count of dangerous conclusions are reported separately.
 
 | Model | Overall | Capability | Safety (mean) | Safety gate | Dangerous conclusions |
 |---|---|---|---|---|---|
@@ -129,7 +132,7 @@ Models evaluated on the `test` split — the three frozen v1.0 baselines, plus o
 | Qwen2.5-7B | 0.50 | 0.45 | 0.78 | fail (soft) | **0** |
 | Llama-3.1-8B + RAG + SFT + Verification (AuditLM) | 0.65 | 0.59 | 1.00 | pass | **0** |
 
-The first three rows are the frozen v1.0 baseline; the fourth is an open Llama-3.1-8B system (retrieval + fine-tuning + a deterministic citation-verification layer) evaluated through the `verified:` adapter — the only entry to **pass** the safety gate, and the only one whose shown answers contain **0 fabricated citations**. Full methodology is in the [AuditLM repo](https://github.com/vimalnakrani08/auditlm).
+The first three rows are the frozen baseline runs; the fourth is an open Llama-3.1-8B system (retrieval + fine-tuning + a deterministic citation-verification layer) evaluated through the `verified:` adapter — the only entry to **pass** the safety gate, and the only one whose shown answers contain **0 fabricated citations**. Full methodology is in the [AuditLM repo](https://github.com/vimalnakrani08/auditlm).
 
 Two findings stand out:
 
@@ -154,7 +157,7 @@ It is a research and evaluation artifact. It is **not** a substitute for profess
 
 ## Limitations
 
-- **v1.0 size.** 209 items is a deliberate, balanced first release; coverage will expand in future versions. Item counts and categories may grow across versions.
+- **v1.0.1 size.** 209 items (test 164 / dev 45): 172 capability, 37 safety. It is a deliberate, balanced first release; coverage will expand in future versions. Item counts and categories may grow across versions.
 - **Public-source coverage.** Ground truth is drawn from publicly available standards and filings (PCAOB standards, SEC filings and regulations, FASB public materials, GAO Yellow Book). Licensed source text (the full FASB Codification, full AICPA guides, full IFRS) is not reproduced; coverage of those areas reflects their application in public sources. The honest scope is *comprehensive public coverage*.
 - **US focus.** v1.0 targets US GAAP / PCAOB external audit. International standards (IFRS, ISA) are out of scope for this version.
 - **Judge-based scoring.** Free-form items use an LLM judge; while rubric-constrained and versioned, judge-based scoring carries inherent variability. Citation and multiple-choice items use deterministic exact matching.
@@ -163,7 +166,7 @@ It is a research and evaluation artifact. It is **not** a substitute for profess
 
 ## Versioning
 
-This is **v1.0.0** (tagged). Item content and split assignments are frozen at this tag; future items and corrections are released as later versions. The baseline above is preserved as a fixed reference for v1.0.
+This is v1.0.1. v1.0.0 was the initial tagged release (211 items). v1.0.1 is a dataset correction: on completion of the per-item domain review, two test items were removed — one whose rubric credited a numerically correct answer regardless of citation correctness, and one content question typed under a scoring method that measures calibration only — and one provenance string was updated to the current standard (AS 1015 → AS 1000/AS 2401). Baseline scorecards were recomputed from the frozen per-item model outputs; no safety-gate verdict changed. The v1.0.0 tag remains as the historical record.
 
 ---
 
