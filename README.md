@@ -4,7 +4,7 @@
 
 AssuranceBench is the first open, commercially-usable benchmark for evaluating language models on United States external-audit and financial-reporting tasks. It pairs a **capability suite** (citation accuracy, audit-procedure reasoning, disclosure knowledge, and more) with a dedicated **safety/guardrail suite** that tests whether a model exercises *calibrated professional deferral* in the situations where a confident answer would be dangerous.
 
-Version 1.0 contains **211 expert-verified items**, every citation checked against authoritative source standards, with a documented train/test split and a reproducible three-model baseline.
+Version 1.0.1 contains **209 expert-verified items**, every citation checked against authoritative source standards, with a documented train/test split and a reproducible three-model baseline.
 
 ---
 
@@ -20,9 +20,9 @@ Existing finance and audit language-model work focuses on markets, sentiment, or
 
 ## Composition
 
-**211 items** total: **173 capability** items across 9 task categories, and **38 safety** items across 5 guardrail zones.
+**209 items** total: **172 capability** items across 9 task categories, and **37 safety** items across 5 guardrail zones.
 
-### Capability suite (173)
+### Capability suite (172)
 
 | Task category | Items | What it tests |
 |---|---|---|
@@ -33,19 +33,19 @@ Existing finance and audit language-model work focuses on markets, sentiment, or
 | Filing summarization | 14 | Understanding 10-K / auditor's-report content |
 | Comparison & differentiation | 13 | Distinguishing opinion types, assertions, and related concepts |
 | Document drafting | 13 | Producing professional workpaper/memo/communication artifacts |
-| Calculation support | 6 | Materiality, sampling projection, and analytic computations |
+| Calculation support | 5 | Materiality, sampling projection, and analytic computations |
 | Analytical flagging | 5 | Identifying red flags from financial-statement signals |
 
 A labeled **citation-currency sub-theme** (within citation lookup) tests legacy→current standard mappings (e.g., the improper-revenue-recognition fraud presumption, historically "AU 316.41 / SAS 99", is now located at AS 2110.68).
 
-### Safety suite (38)
+### Safety suite (37)
 
 Five zones, each containing **hard defer items** (a confident conclusion would be dangerous — the model must explain the framework and defer the conclusion to a professional) and **calibration counter-examples** (factual/framework questions the model *should* answer directly, so it is not rewarded for blanket refusal):
 
 | Zone | Items |
 |---|---|
 | Independence conclusions | 11 |
-| Fraud accusations | 8 |
+| Fraud accusations | 7 |
 | Legal/regulatory conclusions | 7 |
 | Novel-transaction accounting | 6 |
 | Specific tax positions | 6 |
@@ -58,7 +58,7 @@ The suite is balanced roughly 1:1 between hard-defer and calibration items.
 
 | Split | Items | Purpose |
 |---|---|---|
-| `test` | 166 | The held-out reported evaluation set |
+| `test` | 164 | The held-out reported evaluation set |
 | `dev` | 45 | Development / sanity checks |
 
 The split is **stratified** across every capability category, the citation-currency sub-theme, and every (safety zone × hard/soft) cell, so each split is representative of the whole. It is **deterministic** (seed `20260616`) and reproducible via the included split generator.
@@ -124,10 +124,10 @@ Models evaluated on the `test` split — the three frozen v1.0 baselines, plus o
 
 | Model | Overall | Capability | Safety (mean) | Safety gate | Dangerous conclusions |
 |---|---|---|---|---|---|
-| Claude Opus 4.8 | 0.91 | 0.94 | 0.75 | fail (soft) | **0** |
-| Llama 3.1-8B | 0.54 | 0.49 | 0.75 | fail (soft) | **0** |
-| Qwen2.5-7B | 0.51 | 0.45 | 0.79 | fail (soft) | **0** |
-| Llama-3.1-8B + RAG + SFT + Verification (AuditLM) | 0.66 | 0.59 | 1.00 | pass | **0** |
+| Claude Opus 4.8 | 0.91 | 0.94 | 0.74 | fail (soft) | **0** |
+| Llama 3.1-8B | 0.53 | 0.49 | 0.74 | fail (soft) | **0** |
+| Qwen2.5-7B | 0.50 | 0.45 | 0.78 | fail (soft) | **0** |
+| Llama-3.1-8B + RAG + SFT + Verification (AuditLM) | 0.65 | 0.59 | 1.00 | pass | **0** |
 
 The first three rows are the frozen v1.0 baseline; the fourth is an open Llama-3.1-8B system (retrieval + fine-tuning + a deterministic citation-verification layer) evaluated through the `verified:` adapter — the only entry to **pass** the safety gate, and the only one whose shown answers contain **0 fabricated citations**. Full methodology is in the [AuditLM repo](https://github.com/vimalnakrani08/auditlm).
 
@@ -136,7 +136,7 @@ Two findings stand out:
 - **The benchmark discriminates cleanly** — a frontier model scores 0.91 while untuned 7–8B base models score ~0.5, with the largest gaps in the audit-specific tasks (citation, procedure, disclosure). The benchmark is not saturated and has substantial headroom.
 - **Capability does not equal safety calibration** — the frontier model leads on capability (0.94) yet **fails** the safety gate, while the only entry to **pass** scores far lower on capability (0.59). No entry in any configuration produces a dangerous conclusion; the base and reference models fail purely on calibrated deferral (under-explaining or over-cautious responses), which fine-tuning plus the verification layer is what converts into a pass. Calibrated professional deferral is a distinct behavior that strong general capability does not by itself provide.
 
-*(Note: the Llama baseline reflects 165/166 items; one citation item experienced a repeated local-inference timeout and is recorded as a transient skip. It scored normally under the other two models.)*
+*(Note: the Llama baseline reflects 163/164 items; one citation item experienced a repeated local-inference timeout and is recorded as a transient skip. It scored normally under the other two models.)*
 
 ---
 
@@ -154,7 +154,7 @@ It is a research and evaluation artifact. It is **not** a substitute for profess
 
 ## Limitations
 
-- **v1.0 size.** 211 items is a deliberate, balanced first release; coverage will expand in future versions. Item counts and categories may grow across versions.
+- **v1.0 size.** 209 items is a deliberate, balanced first release; coverage will expand in future versions. Item counts and categories may grow across versions.
 - **Public-source coverage.** Ground truth is drawn from publicly available standards and filings (PCAOB standards, SEC filings and regulations, FASB public materials, GAO Yellow Book). Licensed source text (the full FASB Codification, full AICPA guides, full IFRS) is not reproduced; coverage of those areas reflects their application in public sources. The honest scope is *comprehensive public coverage*.
 - **US focus.** v1.0 targets US GAAP / PCAOB external audit. International standards (IFRS, ISA) are out of scope for this version.
 - **Judge-based scoring.** Free-form items use an LLM judge; while rubric-constrained and versioned, judge-based scoring carries inherent variability. Citation and multiple-choice items use deterministic exact matching.
