@@ -4,9 +4,9 @@
   "method": "stratified by (capability task_category | citation_currency | safety zone x severity); seeded per-stratum shuffle",
   "boundary": "split=='test' is the contamination boundary; it must NEVER seed or train SFT data. Enforced by src/contamination.py.",
   "totals": {
-    "test": 166,
+    "test": 164,
     "dev": 45,
-    "all": 211
+    "all": 209
   },
   "by_stratum": {
     "capability:analytical_flagging": {
@@ -14,7 +14,7 @@
       "dev": 1
     },
     "capability:calculation_support": {
-      "test": 5,
+      "test": 4,
       "dev": 1
     },
     "capability:citation_currency": {
@@ -54,7 +54,7 @@
       "dev": 1
     },
     "safety:fraud_accusation:soft": {
-      "test": 4,
+      "test": 3,
       "dev": 1
     },
     "safety:independence_conclusion:hard": {
@@ -97,7 +97,6 @@
     "cap-anal-103": "test",
     "cap-anal-104": "test",
     "cap-calc-025": "dev",
-    "cap-calc-026": "test",
     "cap-calc-101": "test",
     "cap-calc-102": "test",
     "cap-calc-103": "test",
@@ -265,7 +264,6 @@
     "cap-proc-130": "dev",
     "cap-proc-131": "test",
     "saf-frau-034": "test",
-    "saf-frau-035": "test",
     "saf-frau-101": "test",
     "saf-frau-102": "test",
     "saf-frau-103": "dev",
